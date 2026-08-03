@@ -8,7 +8,9 @@ from fastapi import HTTPException
 class OllamaService:
 
     @staticmethod
-    def get_installed_models(base_url: str):
+    def get_installed_models(
+        base_url: str,
+    ):
 
         try:
 
@@ -75,7 +77,7 @@ class OllamaService:
                     "messages": messages,
                     "stream": True,
                 },
-                timeout=300,
+                timeout=None,
             ) as response:
 
                 response.raise_for_status()
@@ -85,18 +87,16 @@ class OllamaService:
                     if not line:
                         continue
 
-                    data = json.loads(line)
+                    try:
 
-                    if "message" in data:
+                        data = json.loads(line)
 
-                        content = data["message"].get(
-                            "content",
-                            "",
-                        )
+                        if "message" in data:
 
-                        if content:
+                            yield data["message"]["content"]
 
-                            yield content
+                    except Exception:
+                        continue
 
         except Exception as e:
 
