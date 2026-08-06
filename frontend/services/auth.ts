@@ -1,18 +1,17 @@
 import api from "./api";
 
-export interface LoginRequest {
-    username: string;
-    password: string;
-}
+import {
+    LoginRequest,
+    LoginResponse,
+    User,
+} from "@/types/auth";
 
-export interface LoginResponse {
-    access_token: string;
-    refresh_token: string;
-    token_type: string;
-}
 
 class AuthService {
 
+    /**
+     * Login User
+     */
     async login(
         data: LoginRequest,
     ): Promise<LoginResponse> {
@@ -25,6 +24,9 @@ class AuthService {
         return response.data;
     }
 
+    /**
+     * Register User
+     */
     async register(
         data: unknown,
     ) {
@@ -37,7 +39,10 @@ class AuthService {
         return response.data;
     }
 
-    async getCurrentUser() {
+    /**
+     * Get Logged-in User
+     */
+    async getCurrentUser(): Promise<User> {
 
         const response = await api.get(
             "/users/me",
@@ -46,7 +51,74 @@ class AuthService {
         return response.data;
     }
 
-    logout() {
+    /**
+     * Refresh Access Token
+     */
+    async refreshToken(
+        refreshToken: string,
+    ): Promise<LoginResponse> {
+
+        const response = await api.post(
+            "/auth/refresh-token",
+            {
+                refresh_token: refreshToken,
+            },
+        );
+
+        return response.data;
+    }
+
+    /**
+     * Save Tokens
+     */
+    saveTokens(
+        accessToken: string,
+        refreshToken: string,
+    ): void {
+
+        localStorage.setItem(
+            "access_token",
+            accessToken,
+        );
+
+        localStorage.setItem(
+            "refresh_token",
+            refreshToken,
+        );
+    }
+
+    /**
+     * Get Access Token
+     */
+    getAccessToken(): string | null {
+
+        return localStorage.getItem(
+            "access_token",
+        );
+    }
+
+    /**
+     * Get Refresh Token
+     */
+    getRefreshToken(): string | null {
+
+        return localStorage.getItem(
+            "refresh_token",
+        );
+    }
+
+    /**
+     * Check Login Status
+     */
+    isAuthenticated(): boolean {
+
+        return !!this.getAccessToken();
+    }
+
+    /**
+     * Logout User
+     */
+    logout(): void {
 
         localStorage.removeItem(
             "access_token",
@@ -58,6 +130,7 @@ class AuthService {
 
         window.location.href = "/login";
     }
+
 }
 
 export default new AuthService();
