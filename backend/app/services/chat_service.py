@@ -1,6 +1,8 @@
 import time
 
 from fastapi import HTTPException
+from fastapi.responses import StreamingResponse
+
 from sqlalchemy.orm import Session
 
 from app.models.ai_model import AIModel
@@ -20,7 +22,7 @@ class ChatService:
         user_id: int = 1,
     ):
 
-        # Get Default AI Model
+        # Default Model
         model = (
             db.query(AIModel)
             .filter(
@@ -37,7 +39,7 @@ class ChatService:
                 detail="Default AI Model Not Found",
             )
 
-        # Create New Session Automatically
+        # Auto Create Session
         if session_id is None:
 
             chat_session = ChatSession(
@@ -160,3 +162,157 @@ class ChatService:
             "response": ai_response,
             "response_time": response_time,
         }
+
+    @staticmethod
+    def chat_stream(
+        db: Session,
+        session_id: int | None,
+        message: str,
+        user_id: int = 1,
+    ):
+
+        model = (
+            db.query(AIModel)
+            .filter(
+                AIModel.is_default == True,
+                AIModel.status == True,
+            )
+            .first()
+        )
+
+        if not model:
+
+            raise HTTPException(
+                status_code=404,
+                detail="Default AI Model Not Found",
+            )
+
+        if session_id is None:
+
+            chat_session = ChatSession(
+                user_id=user_id,
+                ai_model_id=model.id,
+                title=message[:50],
+                status=True,
+            )
+
+            db.add(chat_session)
+            db.commit()
+            db.refresh(chat_session)
+
+            session_id = chat_session.id
+
+        else:
+
+            chat_session = (
+                db.query(ChatSession)
+                .filter(
+                    ChatSession.id == session_id,
+                    ChatSession.status == True,
+                )
+                .first()
+            )
+
+            if not chat_session:
+
+                raise HTTPException(
+                    status_code=404,
+                    detail="Chat Session Not Found",
+                )
+
+            model = (
+                db.query(AIModel)
+                .filter(
+                    AIModel.id == chat_session.ai_model_id,
+                    AIModel.status == True,
+                )
+                .first()
+            )
+
+            if not model:
+
+                raise HTTPException(
+                    status_code=404,
+                    detail="AI Model Not Found",
+                )
+
+        previous_messages = (
+            db.query(Message)
+            .filter(
+                Message.session_id == session_id
+            )
+            .order_by(
+                Message.created_at.asc()
+            )
+            .all()
+        )
+
+        history = []
+
+        for item in previous_messages:
+
+            history.append(
+                {
+                    "role": item.role,
+                    "content": item.message,
+                }
+            )
+
+        history.append(
+            {
+                "role": "user",
+                "content": message,
+            }
+        )
+
+        user_message = Message(
+            session_id=session_id,
+            role="user",
+            message=message,
+        )
+
+        db.add(user_message)
+        db.commit()
+
+        stream = OllamaService.chat_stream(
+            model.base_url,
+            model.model_name,
+            history,
+        )
+
+        def generate():
+
+            start_time = time.time()
+
+            full_response = ""
+
+            for token in stream:
+
+                full_response += token
+
+                yield token
+
+            end_time = time.time()
+
+            response_time = round(
+                end_time - start_time,
+                2,
+            )
+
+            assistant_message = Message(
+                session_id=session_id,
+                role="assistant",
+                message=full_response,
+                prompt_tokens=0,
+                completion_tokens=0,
+                total_tokens=0,
+                response_time=response_time,
+            )
+
+            db.add(assistant_message)
+            db.commit()
+
+        return StreamingResponse(
+            generate(),
+            media_type="text/plain",
+        )

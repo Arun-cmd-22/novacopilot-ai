@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends
+from fastapi.responses import StreamingResponse
 
 from sqlalchemy.orm import Session
 
 from app.database.database import get_db
 
-from app.auth.permissions import has_permission
+from app.auth.dependencies import get_current_user
 
 from app.schemas.chat import (
     ChatRequestSchema,
@@ -26,12 +27,27 @@ router = APIRouter(
 def chat(
     data: ChatRequestSchema,
     db: Session = Depends(get_db),
-    current_user=Depends(
-        has_permission("AI Chat")
-    ),
+    current_user=Depends(get_current_user),
 ):
 
     return ChatService.chat(
+        db=db,
+        session_id=data.session_id,
+        message=data.message,
+        user_id=current_user.id,
+    )
+
+
+@router.post(
+    "/stream",
+)
+def chat_stream(
+    data: ChatRequestSchema,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+) -> StreamingResponse:
+
+    return ChatService.chat_stream(
         db=db,
         session_id=data.session_id,
         message=data.message,
