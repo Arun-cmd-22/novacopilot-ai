@@ -1,91 +1,27 @@
-"use client";
+import { forwardRef, InputHTMLAttributes } from "react";
+import { LucideIcon } from "lucide-react";
 
-import { InputHTMLAttributes } from "react";
-
-import clsx from "clsx";
-
-interface InputProps
-    extends InputHTMLAttributes<HTMLInputElement> {
-
-    label?: string;
-
-    error?: string;
-
+interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
+  label: string;
+  icon?: LucideIcon;
 }
 
-export default function Input({
+const Input = forwardRef<HTMLInputElement, InputProps>(
+  ({ label, icon: Icon, ...props }, ref) => (
+    <div className="space-y-2">
+      <label className="text-sm font-medium text-slate-200">{label}</label>
+      <div className="relative">
+        {Icon && <Icon className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={19} />}
+        <input
+          {...props}
+          ref={ref}
+          className="w-full rounded-xl border border-white/10 bg-white/[0.04] py-3.5 pl-12 pr-4 text-white outline-none transition placeholder:text-slate-600 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
+        />
+      </div>
+    </div>
+  ),
+);
 
-    label,
+Input.displayName = "Input";
 
-    error,
-
-    className,
-
-    ...props
-
-}: InputProps) {
-
-    return (
-
-        <div className="space-y-2">
-
-            {
-
-                label && (
-
-                    <label
-                        className="block text-sm font-medium text-gray-700"
-                    >
-
-                        {label}
-
-                    </label>
-
-                )
-
-            }
-
-            <input
-
-                className={clsx(
-
-                    "w-full rounded-lg border border-gray-300 px-4 py-2",
-
-                    "outline-none transition",
-
-                    "focus:border-blue-500",
-
-                    "focus:ring-2 focus:ring-blue-200",
-
-                    error &&
-                        "border-red-500",
-
-                    className,
-
-                )}
-
-                {...props}
-
-            />
-
-            {
-
-                error && (
-
-                    <p
-                        className="text-sm text-red-500"
-                    >
-
-                        {error}
-
-                    </p>
-
-                )
-
-            }
-
-        </div>
-
-    );
-
-}
+export default Input;

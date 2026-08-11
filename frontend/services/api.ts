@@ -1,41 +1,75 @@
 import axios from "axios";
+import { useAuthStore } from "@/store/auth.store";
 
 const api = axios.create({
-    baseURL: process.env.NEXT_PUBLIC_API_URL,
-    headers: {
-        "Content-Type": "application/json",
-    },
+  baseURL: process.env.NEXT_PUBLIC_API_URL,
+  headers: {
+    "Content-Type": "application/json",
+  },
 });
 
-api.interceptors.request.use(
-    (config) => {
+api.interceptors.request.use((config) => {
+  const { accessToken } = useAuthStore.getState();
 
-        const token = localStorage.getItem("access_token");
+  if (accessToken) {
+    config.headers.Authorization = `Bearer ${accessToken}`;
+  }
 
-        if (token) {
-
-            config.headers.Authorization = `Bearer ${token}`;
-        }
-
-        return config;
-    },
-    (error) => Promise.reject(error),
-);
+  return config;
+});
 
 api.interceptors.response.use(
-    (response) => response,
-    (error) => {
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
 
-        if (error.response?.status === 401) {
+    if (
+      error.response?.status !== 401 &&
+      error.response?.status !== 403
+    ) {
+      return Promise.reject(error);
+    }
 
-            localStorage.removeItem("access_token");
-            localStorage.removeItem("refresh_token");
+    if (originalRequest?._retry) {
+      useAuthStore.getState().clearAuth();
+      return Promise.reject(error);
+    }
 
-            window.location.href = "/login";
-        }
+    originalRequest._retry = true;
 
-        return Promise.reject(error);
-    },
+    const { refreshToken } = useAuthStore.getState();
+
+    if (!refreshToken) {
+      useAuthStore.getState().clearAuth();
+      window.location.href = "/login";
+      return Promise.reject(error);
+    }
+
+    try {
+      const response = await axios.post(
+        `${process.env.NEXT_PUBLIC_API_URL}/refresh-token`,
+        {
+          refresh_token: refreshToken,
+        },
+      );
+
+      const newAccessToken = response.data.access_token;
+
+      useAuthStore
+        .getState()
+        .updateAccessToken(newAccessToken);
+
+      originalRequest.headers.Authorization =
+        `Bearer ${newAccessToken}`;
+
+      return api(originalRequest);
+    } catch (refreshError) {
+      useAuthStore.getState().clearAuth();
+      window.location.href = "/login";
+
+      return Promise.reject(refreshError);
+    }
+  },
 );
 
 export default api;

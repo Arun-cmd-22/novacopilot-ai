@@ -1,49 +1,32 @@
 export interface LoginRequest {
-
-    username: string;
-
-    password: string;
-
-}
-
-export interface LoginResponse {
-
-    access_token: string;
-
-    refresh_token: string;
-
-    token_type: string;
-
+  email: string;
+  password: string;
 }
 
 export interface User {
+  id: number;
+  full_name: string;
+  email: string;
+  mobile: string | null;
+  role: string | null;
+}
 
-    id: number;
-
-    username: string;
-
-    email: string;
-
-    full_name: string;
-
-    status: boolean;
-
-    role_id: number;
-
+export interface LoginResponse {
+  success: boolean;
+  message: string;
+  access_token: string;
+  refresh_token: string;
+  token_type: string;
+  user: User;
 }
 
 export interface RefreshTokenRequest {
-
-    refresh_token: string;
-
+  refresh_token: string;
 }
 
-export interface JwtPayload {
-
-    sub: string;
-
-    exp: number;
-
-    iat: number;
-
+export interface RefreshTokenResponse {
+  success: boolean;
+  message: string;
+  access_token: string;
+  token_type: string;
 }

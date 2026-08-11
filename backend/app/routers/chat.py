@@ -1,10 +1,8 @@
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
-
 from sqlalchemy.orm import Session
 
 from app.database.database import get_db
-
 from app.auth.dependencies import get_current_user
 
 from app.schemas.chat import (
@@ -14,11 +12,16 @@ from app.schemas.chat import (
 
 from app.services.chat_service import ChatService
 
+
 router = APIRouter(
     prefix="/api/v1/chat",
     tags=["AI Chat"],
 )
 
+
+# ==========================================================
+# NORMAL CHAT
+# ==========================================================
 
 @router.post(
     "",
@@ -37,6 +40,10 @@ def chat(
         user_id=current_user.id,
     )
 
+
+# ==========================================================
+# STREAMING CHAT
+# ==========================================================
 
 @router.post(
     "/stream",

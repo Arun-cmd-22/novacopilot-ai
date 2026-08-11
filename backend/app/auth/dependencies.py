@@ -1,13 +1,12 @@
 from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jose import JWTError
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 
-from app.auth.jwt_handler import decode_access_token
 from app.database.database import get_db
 from app.models.user import User
+from app.core.config import settings
 
-# HTTP Bearer Authentication
 security = HTTPBearer()
 
 
@@ -15,30 +14,39 @@ def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db),
 ):
+    token = credentials.credentials
+
     try:
-        # Get JWT token
-        token = credentials.credentials
-
-        # Decode JWT
-        payload = decode_access_token(token)
-
-        # Get user from database
-        user = (
-            db.query(User)
-            .filter(User.id == payload["user_id"])
-            .first()
+        payload = jwt.decode(
+            token,
+            settings.SECRET_KEY,
+            algorithms=[settings.ALGORITHM],
         )
 
-        if not user:
+        user_id = payload.get("sub")
+
+        if not user_id:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="User not found"
+                detail="Invalid authentication token",
             )
-
-        return user
 
     except JWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid Token"
+            detail="Invalid or expired token",
         )
+
+    user = (
+        db.query(User)
+        .filter(User.id == int(user_id))
+        .first()
+    )
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+        )
+
+    return user

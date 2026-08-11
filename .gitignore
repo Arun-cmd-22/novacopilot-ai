@@ -13,6 +13,7 @@ env/
 .env.development
 .env.production
 .env.test
+.env.local
 
 # FastAPI
 .pytest_cache/
